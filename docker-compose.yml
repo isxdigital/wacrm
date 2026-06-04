@@ -1,0 +1,41 @@
+services:
+  wacrm:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+        NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-}
+    image: wacrm:latest
+    container_name: wacrm
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      HOSTNAME: 0.0.0.0
+      PORT: 3000
+      NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      META_APP_SECRET: ${META_APP_SECRET}
+      NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-}
+      ALLOWED_INVITE_HOSTS: ${ALLOWED_INVITE_HOSTS:-}
+      AUTOMATION_CRON_SECRET: ${AUTOMATION_CRON_SECRET}
+
+  wacrm-cron:
+    image: alpine/curl:latest
+    container_name: wacrm-cron
+    restart: unless-stopped
+    depends_on:
+      - wacrm
+    environment:
+      AUTOMATION_CRON_SECRET: ${AUTOMATION_CRON_SECRET}
+    command: >
+      sh -c 'while true; do
+        curl -fsS -H "x-cron-secret: $$AUTOMATION_CRON_SECRET" http://wacrm:3000/api/automations/cron || true;
+        curl -fsS -H "x-cron-secret: $$AUTOMATION_CRON_SECRET" http://wacrm:3000/api/flows/cron || true;
+        sleep 300;
+      done'
